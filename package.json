@@ -1,6 +1,6 @@
 {
   "name": "casdoor-react-native-sdk",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "React-Native client SDK for Casdoor",
   "main": "lib/cjs/index.js",
   "typings": "lib/cjs/index.d.ts",
