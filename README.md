@@ -35,7 +35,7 @@ yarn add casdoor-react-native-sdk
 
 ### Init SDK
 
-Initialization requires 5 parameters, which are all string type:
+Initialization requires 7 parameters, which are all string type:
 
 | Name (in order)  | Must | Description                                         |
 | ---------------- | ---- | --------------------------------------------------- |
@@ -126,7 +126,7 @@ getMyProfileUrl(account)
 #### getAccessToken
 
 ```typescript
-getAccessTokken(redirectUrl); // http://localhost:5000/callback?code=b75bc5c5ac65ffa516e5&state=gjmfdgqf498
+getAccessToken(redirectUrl); // http://localhost:5000/callback?code=b75bc5c5ac65ffa516e5&state=gjmfdgqf498
 ```
 
 Handle the callback url from casdoor, call the back-end api to complete the login process
