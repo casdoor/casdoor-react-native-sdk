@@ -14,11 +14,11 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import jwtDecode from 'jwt-decode';
+import pkceChallenge from 'react-native-pkce-challenge'
 
 export interface SdkConfig {
     serverUrl: string, // your Casdoor server URL, e.g., 'https://door.casdoor.com' for the official demo site
     clientId: string, // the Client ID of your Casdoor application, e.g., 'b800a86702dd4d29ec4d'
-    clientSecret: string, // the Client Secret of your Casdoor application, e.g., '1219843a8db4695155699be3a67f10796f2ec1d5'
     appName: string, // the name of your Casdoor application, e.g., 'app-example'
     organizationName: string // the name of the Casdoor organization connected with your Casdoor application, e.g., 'casbin'
     redirectPath?: string // the path of the redirect URL for your Casdoor application, will be 'http://localhost:5000/callback' if not provided
@@ -44,6 +44,7 @@ export interface Account {
 
 class Sdk {
     private config: SdkConfig
+    private pkce = pkceChallenge();
 
     constructor(config: SdkConfig) {
         this.config = config
@@ -81,7 +82,7 @@ class Sdk {
         const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://') ? this.config.redirectPath : `${window.location.origin}${this.config.redirectPath}`;
         const scope = 'read';
         const state = await this.getOrSaveState();
-        return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}`;
+        return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${this.pkce.codeChallenge}&code_challenge_method=S256`;
     }
 
     public getUserProfileUrl(userName: string, account: Account): string {
@@ -119,11 +120,15 @@ class Sdk {
             const state = redirectUrl.substring(stateStartIndex);
             await AsyncStorage.setItem('casdoor-state', state);
             try {
-                const response = await fetch(`${this.config.serverUrl}/api/login/oauth/access_token?client_id=${this.config.clientId}&client_secret=${this.config.clientSecret}&grant_type=authorization_code&code=${code}`,
-                    {
-                        method: 'POST',
-                        credentials: 'include',
-                    });
+                const response = await fetch(`${this.config.serverUrl.trim()}/api/login/oauth/access_token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    // @ts-ignore
+                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(this.config.redirectPath)}&code_verifier=${this.pkce.codeVerifier}`,
+                    credentials: 'include',
+                });
                 if (response.ok) {
                     const responseData = await response.json();
                     const token = responseData.access_token;

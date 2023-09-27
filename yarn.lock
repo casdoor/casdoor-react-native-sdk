@@ -1774,6 +1774,11 @@ cross-spawn@^7.0.3:
     shebang-command "^2.0.0"
     which "^2.0.1"
 
+crypto-js@3.3.0:
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/crypto-js/-/crypto-js-3.3.0.tgz#846dd1cce2f68aacfa156c8578f926a609b7976b"
+  integrity sha512-DIT51nX0dCfKltpRiXV+/TVZq+Qq2NgF4644+K7Ttnla7zEzqc+kjJyiB96BHNyUTBxyjzRcZYpUdZa+QAqi6Q==
+
 crypto-random-string@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/crypto-random-string/-/crypto-random-string-2.0.0.tgz#ef2a7a966ec11083388369baa02ebead229b30d5"
@@ -4757,6 +4762,13 @@ react-is@^17.0.1:
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-17.0.2.tgz#e691d4a8e9c789365655539ab372762b0efb54f0"
   integrity sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==
+
+react-native-pkce-challenge@^5.2.0:
+  version "5.2.0"
+  resolved "https://registry.yarnpkg.com/react-native-pkce-challenge/-/react-native-pkce-challenge-5.2.0.tgz#8696bba05062a463bb4a695366c11c35ad3f1202"
+  integrity sha512-iuOi0t8NfTzOLFkGECyVHgdUeqawKQYXdW7O4/4MncGHGYnWMCPk4EKvdPdmricIXfPq18uKb5w5RacMo25poA==
+  dependencies:
+    crypto-js "3.3.0"
 
 read-cmd-shim@^2.0.0:
   version "2.0.0"
