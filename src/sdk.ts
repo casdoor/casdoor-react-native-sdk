@@ -14,7 +14,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import jwtDecode from 'jwt-decode';
-import pkceChallenge from 'react-native-pkce-challenge'
+import pkceChallenge from 'pkce-challenge';
 
 export interface SdkConfig {
     serverUrl: string, // your Casdoor server URL, e.g., 'https://door.casdoor.com' for the official demo site
@@ -82,7 +82,7 @@ class Sdk {
         const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://') ? this.config.redirectPath : `${window.location.origin}${this.config.redirectPath}`;
         const scope = 'read';
         const state = await this.getOrSaveState();
-        return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${this.pkce.codeChallenge}&code_challenge_method=S256`;
+        return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${this.pkce.code_challenge}&code_challenge_method=S256`;
     }
 
     public getUserProfileUrl(userName: string, account: Account): string {
@@ -126,7 +126,7 @@ class Sdk {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     // @ts-ignore
-                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(this.config.redirectPath)}&code_verifier=${this.pkce.codeVerifier}`,
+                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(this.config.redirectPath)}&code_verifier=${this.pkce.code_verifier}`,
                     credentials: 'include',
                 });
                 if (response.ok) {

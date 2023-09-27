@@ -78,6 +78,6 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.19.3",
     "jwt-decode": "^3.1.2",
-    "react-native-pkce-challenge": "^5.2.0"
+    "pkce-challenge": "3.1.0"
   }
 }
