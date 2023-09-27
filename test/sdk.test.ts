@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const sdkConfig = {
   serverUrl: 'https://door.casdoor.com',
   clientId: 'b800a86702dd4d29ec4d',
-  clientSecret: '1219843a8db4695155699be3a67f10796f2ec1d5',
   appName: 'app-example',
   organizationName: 'casbin',
   redirectPath: 'http://localhost:5000/callback',
@@ -18,7 +17,6 @@ describe('sdk constructor', () => {
     const instanceConfig = sdk['config'];
     expect(instanceConfig.serverUrl).toEqual(sdkConfig.serverUrl);
     expect(instanceConfig.clientId).toEqual(sdkConfig.clientId);
-    expect(instanceConfig.clientSecret).toEqual(sdkConfig.clientSecret);
     expect(instanceConfig.appName).toEqual(sdkConfig.appName);
     expect(instanceConfig.organizationName).toEqual(sdkConfig.organizationName);
     expect(instanceConfig.redirectPath).toEqual(sdkConfig.redirectPath);
@@ -61,7 +59,7 @@ describe('getSigninUrl', () => {
 
   it('with fixed state', async () => {
     const state = 'test-state';
-    await AsyncStorage.setItem('casdoor-state', state); // 使用await等待异步操作完成
+    await AsyncStorage.setItem('casdoor-state', state);
     const sdk = new Sdk(sdkConfig);
 
     const url = await sdk.getSigninUrl();
@@ -73,7 +71,7 @@ describe('getSigninUrl', () => {
     const sdk = new Sdk(sdkConfig);
 
     const url = await sdk.getSigninUrl();
-    const state = await AsyncStorage.getItem('casdoor-state'); // 使用await等待异步操作完成
+    const state = await AsyncStorage.getItem('casdoor-state');
 
     expect(url).toContain(`state=${state}`);
   });
