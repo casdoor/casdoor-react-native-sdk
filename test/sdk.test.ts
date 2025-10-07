@@ -33,6 +33,13 @@ describe('sdk constructor', () => {
     const instanceConfig = sdk['config'];
     expect(instanceConfig.redirectPath).toEqual('http://localhost:5000/callback');
   });
+
+  it('pkce is not initialized during construction', () => {
+    const sdk = new Sdk(sdkConfig);
+
+    const pkceInstance = sdk['pkce'];
+    expect(pkceInstance).toBeNull();
+  });
 });
 
 describe('getSigninUrl', () => {
@@ -74,5 +81,19 @@ describe('getSigninUrl', () => {
     const state = await AsyncStorage.getItem('casdoor-state');
 
     expect(url).toContain(`state=${state}`);
+  });
+
+  it('pkce is lazily initialized on first getSigninUrl call', async () => {
+    const sdk = new Sdk(sdkConfig);
+
+    // pkce should be null before any method call
+    expect(sdk['pkce']).toBeNull();
+
+    await sdk.getSigninUrl();
+
+    // pkce should be initialized after getSigninUrl is called
+    expect(sdk['pkce']).not.toBeNull();
+    expect(sdk['pkce']).toHaveProperty('code_challenge');
+    expect(sdk['pkce']).toHaveProperty('code_verifier');
   });
 });

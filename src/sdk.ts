@@ -44,13 +44,20 @@ export interface Account {
 
 class Sdk {
     private config: SdkConfig
-    private pkce = pkceChallenge();
+    private pkce: ReturnType<typeof pkceChallenge> | null = null;
 
     constructor(config: SdkConfig) {
         this.config = config
         if (config.redirectPath === undefined || config.redirectPath === null) {
             this.config.redirectPath = '/callback';
         }
+    }
+
+    private getPkce(): ReturnType<typeof pkceChallenge> {
+        if (this.pkce === null) {
+            this.pkce = pkceChallenge();
+        }
+        return this.pkce;
     }
 
     public async getSignupUrl(enablePassword: boolean = true): Promise<string> {
@@ -82,7 +89,8 @@ class Sdk {
         const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://') ? this.config.redirectPath : `${window.location.origin}${this.config.redirectPath}`;
         const scope = 'read';
         const state = await this.getOrSaveState();
-        return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${this.pkce.code_challenge}&code_challenge_method=S256`;
+        const pkce = this.getPkce();
+        return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${pkce.code_challenge}&code_challenge_method=S256`;
     }
 
     public getUserProfileUrl(userName: string, account: Account): string {
@@ -120,13 +128,14 @@ class Sdk {
             const state = redirectUrl.substring(stateStartIndex);
             await AsyncStorage.setItem('casdoor-state', state);
             try {
+                const pkce = this.getPkce();
                 const response = await fetch(`${this.config.serverUrl.trim()}/api/login/oauth/access_token`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     // @ts-ignore
-                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(this.config.redirectPath)}&code_verifier=${this.pkce.code_verifier}`,
+                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(this.config.redirectPath)}&code_verifier=${pkce.code_verifier}`,
                     credentials: 'include',
                 });
                 if (response.ok) {
