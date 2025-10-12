@@ -79,7 +79,19 @@ class Sdk {
     }
 
     public async getSigninUrl(): Promise<string> {
-        const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://') ? this.config.redirectPath : `${window.location.origin}${this.config.redirectPath}`;
+        // For React Native/Expo, redirectPath should be a full URI (e.g., myapp://callback or an AuthSession.makeRedirectUri())
+        // For web, we support both absolute URIs and relative paths
+        let redirectUri: string;
+        if (this.config.redirectPath && this.config.redirectPath.includes('://')) {
+            // Already an absolute URI (e.g., 'myapp://callback' or 'https://example.com/callback')
+            redirectUri = this.config.redirectPath;
+        } else if (typeof window !== 'undefined' && window.location) {
+            // Web environment - construct full URL from relative path
+            redirectUri = `${window.location.origin}${this.config.redirectPath}`;
+        } else {
+            // React Native environment without window - use as-is (should be provided as full URI)
+            redirectUri = this.config.redirectPath || '';
+        }
         const scope = 'read';
         const state = await this.getOrSaveState();
         return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${this.pkce.code_challenge}&code_challenge_method=S256`;
@@ -143,11 +155,22 @@ class Sdk {
     }
 
     public isSilentSigninRequested(): boolean{
+        // This method only works in web environments
+        if (typeof window === 'undefined' || !window.location) {
+            return false;
+        }
         const params = new URLSearchParams(window.location.search);
         return params.get('silentSignin') === '1';
     }
 
     public silentSignin(onSuccess: (message: any) => void, onFailure: (message: any) => void) {
+        // Silent signin only works in web environments with iframe support
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+            console.warn('silentSignin is only supported in web environments. Use standard signin flow in React Native/Expo.');
+            onFailure({ tag: 'Casdoor', type: 'SilentSignin', data: 'not_supported', message: 'Silent signin is not supported in React Native environments' });
+            return;
+        }
+        
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.src = `${this.getSigninUrl()}&silentSignin=1`;

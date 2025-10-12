@@ -33,6 +33,76 @@ npm i casdoor-react-native-sdk
 yarn add casdoor-react-native-sdk
 ~~~
 
+### Init SDK for Web
+
+For web environments, the SDK works as before with relative or absolute paths:
+
+```typescript
+import SDK from 'casdoor-react-native-sdk'
+
+const sdkConfig = {
+  serverUrl: 'https://door.casdoor.com',
+  clientId: 'b800a86702dd4d29ec4d',
+  appName: 'app-example',
+  organizationName: 'casbin',
+  redirectPath: '/callback', // Can use relative path in web
+  signinPath: '/api/signin',
+};
+const sdk = new SDK(sdkConfig)
+```
+
+### Init SDK for React Native / Expo
+
+For React Native and Expo environments, you must provide an absolute URI for `redirectPath`:
+
+```typescript
+import SDK from 'casdoor-react-native-sdk'
+
+const sdkConfig = {
+  serverUrl: 'https://door.casdoor.com',
+  clientId: 'b800a86702dd4d29ec4d',
+  appName: 'app-example',
+  organizationName: 'casbin',
+  redirectPath: 'myapp://callback', // Must be absolute URI with custom scheme
+  signinPath: '/api/signin',
+};
+const sdk = new SDK(sdkConfig)
+```
+
+#### Using with Expo AuthSession
+
+For Expo projects, you can use `AuthSession.makeRedirectUri()` to generate the redirect URI:
+
+```typescript
+import * as AuthSession from 'expo-auth-session';
+import SDK from 'casdoor-react-native-sdk'
+
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: 'myapp',
+  path: 'callback'
+});
+
+const sdkConfig = {
+  serverUrl: 'https://door.casdoor.com',
+  clientId: 'b800a86702dd4d29ec4d',
+  appName: 'app-example',
+  organizationName: 'casbin',
+  redirectPath: redirectUri, // Use the generated redirect URI
+  signinPath: '/api/signin',
+};
+const sdk = new SDK(sdkConfig)
+```
+
+Don't forget to add the custom scheme to your `app.json`:
+
+```json
+{
+  "expo": {
+    "scheme": "myapp"
+  }
+}
+```
+
 ### Init SDK
 
 Initialization requires 7 parameters, which are all string type:
@@ -144,12 +214,127 @@ silentSignin(onSuccess, onFailure)
 
 First, let's explain the two parameters of this method, which are the callback methods for successful and failed login. Next, I will describe the execution process of this method. We will create a hidden "iframe" element to redirect to the login page for authentication, thereby achieving the effect of silent sign-in.
 
+**Note:** `silentSignin` only works in web environments and is not supported in React Native/Expo. The method will call the `onFailure` callback with an appropriate error message if called in a React Native environment. For React Native apps, use the standard signin flow with deep linking.
+
 #### JwtDecode
 
 ````typescript
 JwtDecode(jwtToken)
 ````
 
+
+## Expo / React Native Setup Guide
+
+### Prerequisites
+
+1. **Configure your Casdoor application** to accept your custom scheme redirect URI (e.g., `myapp://callback`)
+2. **Add custom scheme to app.json** (Expo) or configure deep linking in your React Native app
+
+### Step-by-Step Setup for Expo
+
+#### 1. Install dependencies
+
+```bash
+npm install casdoor-react-native-sdk expo-auth-session expo-web-browser
+```
+
+#### 2. Configure app.json
+
+Add your custom URL scheme to `app.json`:
+
+```json
+{
+  "expo": {
+    "scheme": "myapp",
+    "name": "My App",
+    ...
+  }
+}
+```
+
+#### 3. Initialize the SDK
+
+```typescript
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import SDK from 'casdoor-react-native-sdk';
+
+// This is required for Expo to properly handle the redirect
+WebBrowser.maybeCompleteAuthSession();
+
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: 'myapp',
+  path: 'callback'
+});
+
+const sdk = new SDK({
+  serverUrl: 'https://door.casdoor.com',
+  clientId: 'your-client-id',
+  appName: 'your-app-name',
+  organizationName: 'your-org-name',
+  redirectPath: redirectUri,
+});
+```
+
+#### 4. Implement login flow
+
+```typescript
+import { useEffect, useState } from 'react';
+import { Button, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+
+export default function LoginScreen() {
+  const [token, setToken] = useState(null);
+
+  const handleLogin = async () => {
+    try {
+      // Get the sign-in URL from SDK
+      const signinUrl = await sdk.getSigninUrl();
+      
+      // Open the browser for authentication
+      const result = await WebBrowser.openAuthSessionAsync(
+        signinUrl,
+        redirectUri
+      );
+
+      if (result.type === 'success') {
+        // Extract the code from the redirect URL
+        const token = await sdk.getAccessToken(result.url);
+        setToken(token);
+        
+        // Optionally decode the token to get user info
+        const userInfo = sdk.JwtDecode(token);
+        console.log('User info:', userInfo);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  return (
+    <View>
+      <Button title="Login with Casdoor" onPress={handleLogin} />
+      {token && <Text>Logged in! Token: {token.substring(0, 20)}...</Text>}
+    </View>
+  );
+}
+```
+
+### Step-by-Step Setup for React Native (non-Expo)
+
+For bare React Native apps, you'll need to:
+
+1. **Configure deep linking** following the [React Native deep linking guide](https://reactnative.dev/docs/linking)
+2. **Set up URL schemes** for iOS (in `Info.plist`) and Android (in `AndroidManifest.xml`)
+3. **Use a library** like `react-native-inappbrowser-reborn` or React Navigation's linking configuration
+4. **Initialize the SDK** with your custom scheme redirect URI (e.g., `myapp://callback`)
+
+### Important Notes for React Native/Expo
+
+- **Silent Sign-in**: The `silentSignin()` method is not supported in React Native/Expo as it relies on iframes which are not available. Use the standard authentication flow instead.
+- **Redirect URI**: Always use absolute URIs with a custom scheme (e.g., `myapp://callback`) for the `redirectPath` configuration.
+- **Deep Linking**: Ensure your app is properly configured to handle deep links with your custom scheme.
+- **Testing**: Use Expo Go or a development build to test authentication flows. Custom schemes may not work properly in Expo Go without additional configuration.
 
 ## More examples
 
