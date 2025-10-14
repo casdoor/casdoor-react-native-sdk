@@ -1,11 +1,9 @@
 # casdoor-react-native-sdk
 
-[![NPM version][npm-image]][npm-url]
-[![NPM download][download-image]][download-url]
-[![codebeat badge](https://codebeat.co/badges/6f2ad052-7fc8-42e1-b40f-0ca2648530c2)](https://codebeat.co/projects/github-com-casdoor-casdoor-react-native-sdk-master)
-[![GitHub Actions](https://github.com/casdoor/casdoor-react-native-sdk/actions/workflows/release.yml/badge.svg)](https://github.com/casdoor/casdoor-react-native-sdk/actions/workflows/release.yml)
 [![GitHub Actions](https://github.com/casdoor/casdoor-react-native-sdk/actions/workflows/build.yml/badge.svg)](https://github.com/casdoor/casdoor-react-native-sdk/actions/workflows/build.yml)
 [![Coverage Status](https://codecov.io/gh/casdoor/casdoor-react-native-sdk/branch/master/graph/badge.svg)](https://codecov.io/gh/casdoor/casdoor-react-native-sdk)
+[![NPM version][npm-image]][npm-url]
+[![NPM download][download-image]][download-url]
 [![Release](https://img.shields.io/github/release/casdoor/casdoor-react-native-sdk.svg)](https://github.com/casdoor/casdoor-react-native-sdk/releases/latest)
 [![Discord](https://img.shields.io/discord/1022748306096537660?logo=discord&label=discord&color=5865F2)](https://discord.gg/5rPsrAzK7S)
 
