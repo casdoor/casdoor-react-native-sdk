@@ -21,7 +21,7 @@ export interface SdkConfig {
     clientId: string, // the Client ID of your Casdoor application, e.g., 'b800a86702dd4d29ec4d'
     appName: string, // the name of your Casdoor application, e.g., 'app-example'
     organizationName: string // the name of the Casdoor organization connected with your Casdoor application, e.g., 'casbin'
-    redirectPath?: string // the path of the redirect URL for your Casdoor application, will be 'http://localhost:5000/callback' if not provided
+    redirectPath?: string // the redirect URI for your Casdoor application; for Expo use AuthSession.makeRedirectUri(), e.g., 'myapp://callback'
     signinPath?: string // the path of the signin URL for your Casdoor applcation, will be '/api/signin' if not provided
 }
 
@@ -86,7 +86,9 @@ class Sdk {
     }
 
     public async getSigninUrl(): Promise<string> {
-        const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://') ? this.config.redirectPath : `${window.location.origin}${this.config.redirectPath}`;
+        const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://')
+            ? this.config.redirectPath
+            : (typeof window !== 'undefined' ? `${window.location.origin}${this.config.redirectPath}` : this.config.redirectPath ?? '/callback');
         const scope = 'read';
         const state = await this.getOrSaveState();
         const pkce = await this.getPkce();
@@ -150,12 +152,19 @@ class Sdk {
         }
     }
 
-    public isSilentSigninRequested(): boolean{
+    public isSilentSigninRequested(): boolean {
+        if (typeof window === 'undefined' || !window.location) {
+            return false;
+        }
         const params = new URLSearchParams(window.location.search);
         return params.get('silentSignin') === '1';
     }
 
     public silentSignin(onSuccess: (message: any) => void, onFailure: (message: any) => void) {
+        if (typeof document === 'undefined') {
+            onFailure({ tag: 'Casdoor', type: 'SilentSignin', data: 'silentSignin is not supported in React Native' });
+            return;
+        }
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         iframe.src = `${this.getSigninUrl()}&silentSignin=1`;
