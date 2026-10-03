@@ -36,6 +36,7 @@
     ]
   },
   "devDependencies": {
+    "@react-native-async-storage/async-storage": "^1.19.3",
     "@semantic-release/changelog": "^5.0.1",
     "@semantic-release/commit-analyzer": "^8.0.1",
     "@semantic-release/git": "^9.0.0",
@@ -76,8 +77,10 @@
   },
   "homepage": "https://github.com/casdoor/casdoor-react-native-sdk",
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^1.19.3",
     "jwt-decode": "^3.1.2",
     "pkce-challenge": "3.1.0"
+  },
+  "peerDependencies": {
+    "@react-native-async-storage/async-storage": "^1.19.3 || ^2.0.0"
   }
 }

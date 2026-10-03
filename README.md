@@ -25,10 +25,10 @@ Casdoor SDK is very simple to use. We will show you the steps below.
 
 ~~~shell script
 # NPM
-npm i casdoor-react-native-sdk
+npm i casdoor-react-native-sdk @react-native-async-storage/async-storage
 
 # Yarn
-yarn add casdoor-react-native-sdk
+yarn add casdoor-react-native-sdk @react-native-async-storage/async-storage
 ~~~
 
 ### Init SDK
