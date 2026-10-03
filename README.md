@@ -41,7 +41,7 @@ Initialization requires 7 parameters, which are all string type:
 | clientId         | Yes  | the Client ID of your Casdoor application|
 | appName           | Yes  | the name of your Casdoor application |
 | organizationName     | Yes  | the name of the Casdoor organization connected with your Casdoor application                    |
-| redirectPath     | No  | the path of the redirect URL for your Casdoor application, will be `/callback` if not provided              |
+| redirectPath     | No  | the redirect URL for your Casdoor application, e.g., `myapp://callback`; a path like `/callback` is prefixed with the current origin on the web, will be `/callback` if not provided              |
 | signinPath     | No  | the path of the signin URL for your Casdoor application, will be `/api/signin` if not provided              |
 
 ```typescript
@@ -58,6 +58,59 @@ const sdkConfig = {
 const sdk = new SDK(sdkConfig)
 // call sdk to handle
 ```
+
+## Usage in Expo
+
+The SDK works in the Expo managed workflow without `react-native-webview` or manual deep-link handling: `signin()` opens the Casdoor login page in the system auth browser and returns the access token after the redirect.
+
+### Installation
+
+~~~shell script
+npx expo install casdoor-react-native-sdk @react-native-async-storage/async-storage expo-auth-session expo-web-browser expo-crypto react-native-get-random-values
+~~~
+
+### Configure the redirect URI
+
+1. Add a scheme to `app.json`, so that the app can be opened by the redirect URI:
+
+```json
+{
+  "expo": {
+    "scheme": "myapp"
+  }
+}
+```
+
+2. Add the redirect URI to the **Redirect URLs** of your application in Casdoor. `AuthSession.makeRedirectUri({ path: 'callback' })` returns `myapp://callback` in a standalone or development build, and `exp://<your-ip>:8081/--/callback` in Expo Go; add the one you use.
+
+### Sign in
+
+```typescript
+// must be imported before the SDK: the PKCE code is generated with crypto.getRandomValues(), which Hermes does not provide
+import 'react-native-get-random-values';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import SDK from 'casdoor-react-native-sdk';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const sdk = new SDK({
+  serverUrl: 'https://door.casdoor.com',
+  clientId: 'b800a86702dd4d29ec4d',
+  appName: 'app-example',
+  organizationName: 'casbin',
+  redirectPath: AuthSession.makeRedirectUri({ path: 'callback' }),
+});
+
+const login = async () => {
+  const token = await sdk.signin(WebBrowser.openAuthSessionAsync);
+  if (token) {
+    const user = sdk.JwtDecode(token);
+  }
+};
+```
+
+`silentSignin()` relies on a hidden iframe and only works on the web; in native apps it calls `onFailure`.
 
 ## Usage in vanilla Javascript
 
@@ -117,6 +170,14 @@ Return the url to navigate to a specific user's casdoor personal page
 ```typescript
 getMyProfileUrl(account)
 ```
+
+#### signin
+
+```typescript
+signin(openAuthSession) // e.g., sdk.signin(WebBrowser.openAuthSessionAsync)
+```
+
+Open the login page with `openAuthSession(url, redirectUri)`, which should resolve to `{ type: 'success', url }` after the browser is redirected back, and return the access token. Return `undefined` if the user cancels the login.
 
 #### getAccessToken
 

@@ -14,4 +14,6 @@
 
 import Sdk from './sdk';
 
+export type { SdkConfig, Account, AuthSessionResult, OpenAuthSession } from './sdk';
+
 export default Sdk;

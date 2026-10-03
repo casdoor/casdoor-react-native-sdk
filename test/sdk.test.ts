@@ -76,3 +76,44 @@ describe('getSigninUrl', () => {
     expect(url).toContain(`state=${state}`);
   });
 });
+
+describe('signin', () => {
+  const expoConfig = {
+    ...sdkConfig,
+    redirectPath: 'exp://192.168.1.2:8081/--/callback',
+  };
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({access_token: 'test-token'}),
+    });
+  });
+
+  it('exchanges the code returned by the auth session for a token', async () => {
+    const sdk = new Sdk(expoConfig);
+    const openAuthSession = jest.fn().mockResolvedValue({
+      type: 'success',
+      url: `${expoConfig.redirectPath}?state=abc&code=test-code`,
+    });
+
+    const token = await sdk.signin(openAuthSession);
+
+    expect(token).toEqual('test-token');
+    expect(openAuthSession.mock.calls[0][0]).toContain(`redirect_uri=${encodeURIComponent(expoConfig.redirectPath)}`);
+    expect(openAuthSession.mock.calls[0][1]).toEqual(expoConfig.redirectPath);
+    const body = (global as any).fetch.mock.calls[0][1].body;
+    expect(body).toContain('code=test-code&');
+    expect(body).toContain(`redirect_uri=${encodeURIComponent(expoConfig.redirectPath)}`);
+  });
+
+  it('returns undefined when the user cancels', async () => {
+    const sdk = new Sdk(expoConfig);
+
+    const token = await sdk.signin(async () => ({type: 'cancel'}));
+
+    expect(token).toBeUndefined();
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
+});

@@ -21,7 +21,7 @@ export interface SdkConfig {
     clientId: string, // the Client ID of your Casdoor application, e.g., 'b800a86702dd4d29ec4d'
     appName: string, // the name of your Casdoor application, e.g., 'app-example'
     organizationName: string // the name of the Casdoor organization connected with your Casdoor application, e.g., 'casbin'
-    redirectPath?: string // the redirect URI for your Casdoor application; for Expo use AuthSession.makeRedirectUri(), e.g., 'myapp://callback'
+    redirectPath?: string // the redirect URI for your Casdoor application, e.g., 'myapp://callback' (for Expo use AuthSession.makeRedirectUri()), will be '/callback' if not provided
     signinPath?: string // the path of the signin URL for your Casdoor applcation, will be '/api/signin' if not provided
 }
 
@@ -41,6 +41,14 @@ export interface Account {
     isAdmin: boolean,
     accessToken: string
 }
+
+// the result returned by an in-app auth browser, e.g., WebBrowser.openAuthSessionAsync() from expo-web-browser
+export interface AuthSessionResult {
+    type: string, // 'success' when the browser was redirected back to redirectUri, otherwise 'cancel', 'dismiss', etc.
+    url?: string // the redirect URL with code and state, only present when type is 'success'
+}
+
+export type OpenAuthSession = (url: string, redirectUri: string) => Promise<AuthSessionResult>;
 
 class Sdk {
     private config: SdkConfig
@@ -85,14 +93,31 @@ class Sdk {
         AsyncStorage.removeItem('casdoor-state');
     }
 
+    public getRedirectUri(): string {
+        const redirectPath = this.config.redirectPath ?? '/callback';
+        if (redirectPath.includes('://') || typeof window === 'undefined' || !window.location) {
+            return redirectPath;
+        }
+        return `${window.location.origin}${redirectPath}`;
+    }
+
     public async getSigninUrl(): Promise<string> {
-        const redirectUri = this.config.redirectPath && this.config.redirectPath.includes('://')
-            ? this.config.redirectPath
-            : (typeof window !== 'undefined' ? `${window.location.origin}${this.config.redirectPath}` : this.config.redirectPath ?? '/callback');
+        const redirectUri = this.getRedirectUri();
         const scope = 'read';
         const state = await this.getOrSaveState();
         const pkce = await this.getPkce();
         return `${this.config.serverUrl.trim()}/login/oauth/authorize?client_id=${this.config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}&code_challenge=${pkce.code_challenge}&code_challenge_method=S256`;
+    }
+
+    // Opens the Casdoor login page with the given auth browser, e.g., WebBrowser.openAuthSessionAsync for Expo,
+    // and exchanges the returned code for an access token. Returns undefined if the user cancels the login.
+    public async signin(openAuthSession: OpenAuthSession): Promise<string | undefined> {
+        const signinUrl = await this.getSigninUrl();
+        const result = await openAuthSession(signinUrl, this.getRedirectUri());
+        if (result.type !== 'success' || !result.url) {
+            return undefined;
+        }
+        return this.getAccessToken(result.url);
     }
 
     public getUserProfileUrl(userName: string, account: Account): string {
@@ -120,23 +145,40 @@ class Sdk {
         return jwtDecode(token);
     }
 
+    // URLSearchParams is not fully implemented in React Native, so parse the query string by hand
+    private static getQueryParam(url: string, name: string): string | null {
+        const query = url.split('#')[0].split('?')[1];
+        if (!query) {
+            return null;
+        }
+        for (const pair of query.split('&')) {
+            const [key, value = ''] = pair.split('=');
+            if (decodeURIComponent(key) === name) {
+                return decodeURIComponent(value.replace(/\+/g, ' '));
+            }
+        }
+        return null;
+    }
+
     public async getAccessToken(redirectUrl: string): Promise<any> {
-        // @ts-ignore
-        if (redirectUrl.startsWith(this.config.redirectPath)) {
-            const codeStartIndex = redirectUrl.indexOf('code=') + 5;
-            const codeEndIndex = redirectUrl.indexOf('&', codeStartIndex);
-            const code = redirectUrl.substring(codeStartIndex, codeEndIndex);
-            const stateStartIndex = redirectUrl.indexOf('state=') + 6;
-            const state = redirectUrl.substring(stateStartIndex);
-            await AsyncStorage.setItem('casdoor-state', state);
+        const redirectUri = this.getRedirectUri();
+        if (redirectUrl.startsWith(redirectUri)) {
+            const code = Sdk.getQueryParam(redirectUrl, 'code');
+            if (code === null) {
+                console.error('Error during Signin Request:', Sdk.getQueryParam(redirectUrl, 'error') ?? redirectUrl);
+                return;
+            }
+            const state = Sdk.getQueryParam(redirectUrl, 'state');
+            if (state !== null) {
+                await AsyncStorage.setItem('casdoor-state', state);
+            }
             try {
                 const response = await fetch(`${this.config.serverUrl.trim()}/api/login/oauth/access_token`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    // @ts-ignore
-                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(this.config.redirectPath)}&code_verifier=${(await this.getPkce()).code_verifier}`,
+                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}&code_verifier=${(await this.getPkce()).code_verifier}`,
                     credentials: 'include',
                 });
                 if (response.ok) {
@@ -167,7 +209,10 @@ class Sdk {
         }
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
-        iframe.src = `${this.getSigninUrl()}&silentSignin=1`;
+        this.getSigninUrl().then(signinUrl => {
+            iframe.src = `${signinUrl}&silentSignin=1`;
+            document.body.appendChild(iframe);
+        });
         const handleMessage = (event: MessageEvent) => {
             if (window !== window.parent) {
                 return null;
@@ -184,7 +229,6 @@ class Sdk {
             }
         };
         window.addEventListener('message', handleMessage);
-        document.body.appendChild(iframe);
     }
 
 }
