@@ -52,7 +52,6 @@ export type OpenAuthSession = (url: string, redirectUri: string) => Promise<Auth
 
 class Sdk {
     private config: SdkConfig
-    private pkceCache: { code_challenge: string; code_verifier: string } | null = null;
 
     constructor(config: SdkConfig) {
         this.config = config
@@ -61,11 +60,16 @@ class Sdk {
         }
     }
 
-    private async getPkce() {
-        if (!this.pkceCache) {
-            this.pkceCache = await pkceChallenge();
+    // The PKCE pair is kept in AsyncStorage (localStorage on the web) instead of memory, so the code verifier
+    // survives the page redirect to Casdoor and back, and is found by a new Sdk instance after the redirect.
+    private async getPkce(): Promise<{ code_challenge: string; code_verifier: string }> {
+        const savedPkce = await AsyncStorage.getItem('casdoor-pkce');
+        if (savedPkce !== null) {
+            return JSON.parse(savedPkce);
         }
-        return this.pkceCache;
+        const pkce = await pkceChallenge();
+        await AsyncStorage.setItem('casdoor-pkce', JSON.stringify(pkce));
+        return pkce;
     }
 
     public async getSignupUrl(enablePassword: boolean = true): Promise<string> {
@@ -91,6 +95,7 @@ class Sdk {
 
     clearState() {
         AsyncStorage.removeItem('casdoor-state');
+        AsyncStorage.removeItem('casdoor-pkce');
     }
 
     public getRedirectUri(): string {
@@ -172,13 +177,14 @@ class Sdk {
             if (state !== null) {
                 await AsyncStorage.setItem('casdoor-state', state);
             }
+            const codeVerifier = (await this.getPkce()).code_verifier;
             try {
                 const response = await fetch(`${this.config.serverUrl.trim()}/api/login/oauth/access_token`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}&code_verifier=${(await this.getPkce()).code_verifier}`,
+                    body: `client_id=${this.config.clientId}&grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}&code_verifier=${codeVerifier}`,
                     credentials: 'include',
                 });
                 if (response.ok) {
@@ -190,6 +196,9 @@ class Sdk {
                 }
             } catch (error) {
                 console.error('Error during Signin Request:', error);
+            } finally {
+                // a code verifier is only valid for one authorization code, the next signin gets a new one
+                await AsyncStorage.removeItem('casdoor-pkce');
             }
         }
     }

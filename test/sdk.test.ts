@@ -117,3 +117,37 @@ describe('signin', () => {
     expect((global as any).fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('PKCE across a page redirect', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({access_token: 'test-token'}),
+    });
+  });
+
+  it('uses the code verifier saved before the redirect in a new Sdk instance', async () => {
+    const signinUrl = await new Sdk(sdkConfig).getSigninUrl();
+    const pkce = JSON.parse((await AsyncStorage.getItem('casdoor-pkce'))!);
+    expect(signinUrl).toContain(`code_challenge=${pkce.code_challenge}`);
+
+    // the page is reloaded after the redirect back from Casdoor, so a new Sdk instance handles the callback
+    const token = await new Sdk(sdkConfig).getAccessToken(`${sdkConfig.redirectPath}?code=test-code&state=abc`);
+
+    expect(token).toEqual('test-token');
+    expect((global as any).fetch.mock.calls[0][1].body).toContain(`code_verifier=${pkce.code_verifier}`);
+    expect(await AsyncStorage.getItem('casdoor-pkce')).toBeNull();
+  });
+
+  it('uses a new code verifier for the next signin', async () => {
+    const sdk = new Sdk(sdkConfig);
+    const firstUrl = await sdk.getSigninUrl();
+    await sdk.getAccessToken(`${sdkConfig.redirectPath}?code=test-code&state=abc`);
+
+    const secondUrl = await sdk.getSigninUrl();
+
+    const getChallenge = (url: string) => url.split('code_challenge=')[1].split('&')[0];
+    expect(getChallenge(secondUrl)).not.toEqual(getChallenge(firstUrl));
+  });
+});
